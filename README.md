@@ -1,3 +1,5 @@
+![main](https://github.com/marcusspangenberg/waitfreequeue/actions/workflows/cmake-multi-platform.yml/badge.svg)
+
 # waitfreequeue
 Single header, wait-free, multiple producer, single consumer queue for C++.
 
