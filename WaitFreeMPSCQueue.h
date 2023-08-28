@@ -25,13 +25,16 @@ SOFTWARE.
 #pragma once
 
 #include <atomic>
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 #include <cassert>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 #include <type_traits>
-#include <unistd.h>
 #include <utility>
 
 /**
@@ -47,17 +50,27 @@ public:
           tail_(0)
     {
         static_assert(isPowerOfTwo(S));
-        const auto pageSize = getpagesize();
-        const auto allocSize = nextMultipleOf(pageSize, sizeof(element) * S);
-        auto allocResult = aligned_alloc(pageSize, allocSize);
-        assert(allocResult);
+        const auto allocSize = sizeof(element) * S;
+#ifdef _WIN32
+        auto allocResult = _aligned_malloc(allocSize, alignof(element));
+#else
+        auto allocResult = aligned_alloc(alignof(element), allocSize);
+#endif
+        if (!allocResult)
+        {
+            throw std::bad_alloc();
+        }
         memset(allocResult, 0, allocSize);
         elements_ = reinterpret_cast<element*>(allocResult);
     }
 
     ~WaitFreeMPSCQueue()
     {
+#ifdef _WIN32
+        _aligned_free(elements_);
+#else
         free(elements_);
+#endif
     }
 
     /**
@@ -124,11 +137,5 @@ private:
     static constexpr bool isPowerOfTwo(const size_t size)
     {
         return (size & (size - 1)) == 0;
-    }
-
-    static constexpr size_t nextMultipleOf(const size_t n, const size_t size)
-    {
-        assert(isPowerOfTwo(n));
-        return (size + n - 1) & ~(n - 1);
     }
 };
