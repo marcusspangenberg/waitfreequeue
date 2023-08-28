@@ -7,11 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
-#ifdef _WIN32
-#include <sysinfoapi.h>
-#else
-#include <unistd.h>
-#endif
 #include <utility>
 
 template<typename T, size_t S>
@@ -23,9 +18,8 @@ public:
           tail_(0)
     {
         static_assert(isPowerOfTwo(S));
-        const auto pageSize = getPageSize();
-        const auto allocSize = nextMultipleOf(pageSize, sizeof(element) * S);
-        auto allocResult = aligned_alloc(pageSize, allocSize);
+        const auto allocSize = sizeof(element) * S;
+        auto allocResult = aligned_alloc(alignof(element), allocSize);
         assert(allocResult);
         memset(allocResult, 0, allocSize);
         elements_ = reinterpret_cast<element*>(allocResult);
@@ -83,22 +77,5 @@ private:
     static constexpr bool isPowerOfTwo(const size_t size)
     {
         return (size & (size - 1)) == 0;
-    }
-
-    static constexpr size_t nextMultipleOf(const size_t n, const size_t size)
-    {
-        assert(isPowerOfTwo(n));
-        return (size + n - 1) & ~(n - 1);
-    }
-
-    int32_t getPageSize()
-    {
-#ifdef _WIN32
-        SYSTEM_INFO sysInfo;
-        GetSystemInfo(&sysInfo);
-        return static_cast<int32_t>(sysInfo.dwPageSize);
-#else
-        return getpagesize();
-#endif
     }
 };
