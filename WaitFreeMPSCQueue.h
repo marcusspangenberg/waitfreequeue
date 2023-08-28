@@ -38,7 +38,11 @@ public:
 
     ~WaitFreeMPSCQueue()
     {
+#ifdef _WIN32
+        _aligned_free(elements_);
+#else
         free(elements_);
+#endif
     }
 
     template<typename U>

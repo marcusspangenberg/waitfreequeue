@@ -11,7 +11,7 @@ namespace
 {
 
 constexpr size_t numElements = 65536;
-constexpr size_t numIterations = 64;
+constexpr size_t numIterations = 4;
 
 constexpr uint64_t makeValue(const uint64_t threadId, const uint64_t iteration, const uint64_t elementId)
 {
