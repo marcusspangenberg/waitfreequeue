@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -38,7 +39,7 @@ public:
     ~ScopedStatsAverage()
     {
         double sum = 0.0;
-        for (const auto value: values_)
+        for (const auto value : values_)
         {
             sum += value;
         }
