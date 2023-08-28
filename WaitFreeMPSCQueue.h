@@ -1,11 +1,15 @@
 #pragma once
 
 #include <atomic>
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 #include <cassert>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 #include <type_traits>
 #include <utility>
 
@@ -19,8 +23,15 @@ public:
     {
         static_assert(isPowerOfTwo(S));
         const auto allocSize = sizeof(element) * S;
+#ifdef _WIN32
+        auto allocResult = _aligned_malloc(allocSize, alignof(element));
+#else
         auto allocResult = aligned_alloc(alignof(element), allocSize);
-        assert(allocResult);
+#endif
+        if (!allocResult)
+        {
+            throw std::bad_alloc();
+        }
         memset(allocResult, 0, allocSize);
         elements_ = reinterpret_cast<element*>(allocResult);
     }
