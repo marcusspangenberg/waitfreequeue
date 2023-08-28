@@ -157,7 +157,7 @@ TEST(TestWaitFreeQueue, multiThreadPushPopCorrectnessPopCanFail)
                 const auto value = makeValue(1, iteration, i);
                 queue->push(value);
                 pushValues.insert(value);
-                usleep(1);
+                std::this_thread::yield();
             }
         }
     });

@@ -3,9 +3,6 @@ project(waitfreequeue)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -DDEBUG")
-
 # Google test
 include(FetchContent)
 FetchContent_Declare(
