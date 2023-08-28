@@ -16,7 +16,7 @@ WaitFreeMPSCQueue<ELEMENT_TYPE, SIZE> queue;
 
 
 // push will assert if the queue is full if asserts are enabled,
-// otherwise the behviour is undefined. The queue should be dimensioned so that this 
+// otherwise the behaviour is undefined. The queue should be dimensioned so that this 
 // never happens.
 //
 // push is not thread safe with regards to other push operations, but is thread safe
