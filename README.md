@@ -12,25 +12,18 @@ Single header, wait-free, multiple producer, single consumer queue for C++.
 #include "waitfreequeue/WaitFreeMPSCQueue.h"
 
 
-// SIZE must be a power of 2
 WaitFreeMPSCQueue<ELEMENT_TYPE, SIZE> queue;
 
 
-// push will assert if the queue is full if asserts are enabled,
-// otherwise the behaviour is undefined. The queue should be dimensioned so that this 
-// never happens.
-//
-// push is not thread safe with regards to other push operations, but is thread safe
-// with regards to pop operations.
-
+// Will assert if the queue is full if asserts are enabled,
+// otherwise the behaviour is undefined. The queue should be dimensioned so that this never happens.
+// Thread safe with regards to other push operations and to pop operations.
 ELEEENT_TYPE element;
 queue.push(element);
 
 
-// pop will return false if the queue is empty, 
-// the element is only valid if the return value is true
-// pop is thread safe with regards to other pop operations and to push operations
-
+// Returns false if the queue is empty, otherwise true. item is only valid if the function returns true.
+// Not thread safe with regards to other pop operations, thread safe with regards to push operations.
 ELEMENT_TYPE element;
 if (queue.pop(element)) {
     // element is valid
