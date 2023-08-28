@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2023 Marcus Spangenberg
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #pragma once
 
 #include <atomic>
@@ -13,6 +37,10 @@
 #include <type_traits>
 #include <utility>
 
+/**
+ * Single header, wait-free, multiple producer, single consumer queue.
+ * T must be trivially copyable, S must be a power of 2.
+ */
 template<typename T, size_t S>
 class WaitFreeMPSCQueue
 {
@@ -45,6 +73,15 @@ public:
 #endif
     }
 
+    /**
+     * @brief Pushes an item to the queue.
+     *
+     * @details
+     * Will assert if the queue is full if asserts are enabled,
+     * otherwise the behaviour is undefined. The queue should be dimensioned so that this never happens.
+     *
+     * Thread safe with regards to other push operations and to pop operations.
+     */
     template<typename U>
     void push(U&& item) noexcept
     {
@@ -54,6 +91,14 @@ public:
         elements_[tail].isUsed_.store(1, std::memory_order_release);
     }
 
+    /**
+     * @brief Pops an item from the queue.
+     *
+     * @details
+     * Returns false if the queue is empty, otherwise true. item is only valid if the function returns true.
+     *
+     * Not thread safe with regards to other pop operations, thread safe with regards to push operations.
+     */
     bool pop(T& item) noexcept
     {
         const auto head = head_.fetch_add(1, std::memory_order_relaxed) & modValue_;
