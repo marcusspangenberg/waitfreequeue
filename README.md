@@ -5,14 +5,13 @@ Single header, wait-free, multiple producer, single consumer queue for C++.
 
 # Requirements
 * C++17
-* Tested on Linux x64 and OSX arm64
+* Tested on Linux (clang, gcc) x64, OSX arm64 (clang) and Windows x64 (vs2022)
 
 # Usage
 ```
 #include "waitfreequeue/WaitFreeMPSCQueue.h"
 
 
-// ELEMENT_TYPE must be trivially copyable
 // SIZE must be a power of 2
 WaitFreeMPSCQueue<ELEMENT_TYPE, SIZE> queue;
 
