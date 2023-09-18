@@ -39,7 +39,9 @@ SOFTWARE.
 
 /**
  * Single header, wait-free, multiple producer, single consumer queue.
- * T must be trivially copyable, S must be a power of 2.
+ *
+ * T is the type of the elements in the queue. If T is a non-trivial type it must be default constructible.
+ * S is the maximum number of elements in the queue. S must be a power of 2.
  */
 template<typename T, size_t S>
 class WaitFreeMPSCQueue
@@ -50,6 +52,7 @@ public:
           tail_(0)
     {
         static_assert(isPowerOfTwo(S));
+        static_assert(std::is_default_constructible_v<T>);
         const auto allocSize = sizeof(element) * S;
 #ifdef _WIN32
         auto allocResult = _aligned_malloc(allocSize, alignof(element));
@@ -60,8 +63,12 @@ public:
         {
             throw std::bad_alloc();
         }
-        memset(allocResult, 0, allocSize);
         elements_ = reinterpret_cast<element*>(allocResult);
+        for (size_t i = 0; i < S; ++i)
+        {
+            new (&elements_[i].value_) T();
+            elements_[i].isUsed_.store(0, std::memory_order_relaxed);
+        }
     }
 
     ~WaitFreeMPSCQueue()
@@ -81,12 +88,12 @@ public:
      * otherwise the behaviour is undefined. The queue should be dimensioned so that this never happens.
      *
      * Thread safe with regards to other push operations and to pop operations.
-     */
-    template<typename U>
-    void push(U&& item) noexcept
+   */
+    template<typename... U>
+    void push(U&&... item) noexcept
     {
         const auto tail = tail_.fetch_add(1, std::memory_order_relaxed) & modValue_;
-        elements_[tail].value_ = std::forward<U>(item);
+        new (&elements_[tail].value_) T(std::forward<U>(item)...);
         assert(elements_[tail].isUsed_.load(std::memory_order_acquire) == 0);
         elements_[tail].isUsed_.store(1, std::memory_order_release);
     }
@@ -98,7 +105,7 @@ public:
      * Returns false if the queue is empty, otherwise true. item is only valid if the function returns true.
      *
      * Not thread safe with regards to other pop operations, thread safe with regards to push operations.
-     */
+   */
     bool pop(T& item) noexcept
     {
         const auto head = head_.fetch_add(1, std::memory_order_relaxed) & modValue_;
@@ -115,6 +122,10 @@ public:
         else
         {
             item = elements_[head].value_;
+            if constexpr (!std::is_trivially_destructible_v<T>)
+            {
+                (&elements_[head].value_)->~T();
+            }
         }
 
         elements_[head].isUsed_.store(0, std::memory_order_relaxed);
