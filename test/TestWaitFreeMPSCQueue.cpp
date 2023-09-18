@@ -165,7 +165,7 @@ TEST(TestWaitFreeQueue, multiThreadPushPopCorrectnessPopCanFail)
     thread0->join();
     thread1->join();
 
-    for (const auto& value: pushValues)
+    for (const auto& value : pushValues)
     {
         EXPECT_NE(popValues.find(value), popValues.end());
     }
@@ -274,5 +274,114 @@ TEST(TestWaitFreeQueue, popPerformance)
             }
             stats.push(timer.getMs());
         }
+    }
+}
+
+TEST(TestWaitFreeQueue, popNonMovableWithNonTrivialDestructor)
+{
+    uint32_t count = 0;
+
+    struct Element {
+        Element()
+            : a_(0),
+              count_(nullptr)
+        {
+        }
+
+        explicit Element(const uint32_t a, uint32_t* count)
+            : a_(a),
+              count_(count)
+        {
+            (*count_)++;
+        }
+
+        Element(const Element& o)
+            : a_(o.a_),
+              count_(o.count_)
+        {
+            (*count_)++;
+        }
+        Element(Element&& o) noexcept = delete;
+
+        ~Element()
+        {
+            a_ = 0;
+            (*count_)--;
+        }
+
+        Element& operator=(Element&& o) = delete;
+        Element& operator=(const Element& o)
+        {
+            if (this == &o)
+            {
+                return *this;
+            }
+
+            a_ = o.a_;
+            count_ = o.count_;
+            return *this;
+        }
+
+        uint32_t a_;
+        uint32_t* count_;
+    };
+    auto queue = std::make_unique<WaitFreeMPSCQueue<Element, 16>>();
+
+    queue->push(1, &count);
+    queue->push(2, &count);
+
+    {
+        Element result(0, &count);
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+        EXPECT_EQ(1, result.a_);
+    }
+    EXPECT_EQ(1, count);
+    {
+        Element result(0, &count);
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+        EXPECT_EQ(2, result.a_);
+    }
+    EXPECT_EQ(0, count);
+}
+
+TEST(TestWaitFreeQueue, popNonMovableWithTrivialDestructor)
+{
+    struct Element {
+        Element()
+            : a_(0)
+        {
+        }
+        explicit Element(const uint32_t a)
+            : a_(a)
+        {
+        }
+
+        Element(const Element& o) = default;
+        Element(Element&& o) noexcept = delete;
+
+        ~Element() = default;
+
+        Element& operator=(Element&& o) = delete;
+        Element& operator=(const Element& o) = default;
+        uint32_t a_;
+    };
+    auto queue = std::make_unique<WaitFreeMPSCQueue<Element, 16>>();
+
+    queue->push(1);
+    queue->push(2);
+
+    {
+        Element result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+        EXPECT_EQ(1, result.a_);
+    }
+    {
+        Element result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+        EXPECT_EQ(2, result.a_);
     }
 }
