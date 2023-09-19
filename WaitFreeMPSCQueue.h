@@ -63,12 +63,8 @@ public:
         {
             throw std::bad_alloc();
         }
+        memset(allocResult, 0, allocSize);
         elements_ = reinterpret_cast<element*>(allocResult);
-        for (size_t i = 0; i < S; ++i)
-        {
-            new (&elements_[i].value_) T();
-            elements_[i].isUsed_.store(0, std::memory_order_relaxed);
-        }
     }
 
     ~WaitFreeMPSCQueue()
