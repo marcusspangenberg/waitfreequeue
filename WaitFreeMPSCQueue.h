@@ -40,7 +40,7 @@ SOFTWARE.
 /**
  * Single header, wait-free, multiple producer, single consumer queue.
  *
- * T is the type of the elements in the queue. If T is a non-trivial type it must be default constructible.
+ * T is the type of the elements in the queue.
  * S is the maximum number of elements in the queue. S must be a power of 2.
  */
 template<typename T, size_t S>
@@ -52,7 +52,6 @@ public:
           tail_(0)
     {
         static_assert(isPowerOfTwo(S));
-        static_assert(std::is_default_constructible_v<T>);
         const auto allocSize = sizeof(element) * S;
 #ifdef _WIN32
         auto allocResult = _aligned_malloc(allocSize, alignof(element));

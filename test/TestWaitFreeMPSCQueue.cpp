@@ -282,11 +282,7 @@ TEST(TestWaitFreeQueue, popNonMovableWithNonTrivialDestructor)
     uint32_t count = 0;
 
     struct Element {
-        Element()
-            : a_(0),
-              count_(nullptr)
-        {
-        }
+        Element() = delete;
 
         explicit Element(const uint32_t a, uint32_t* count)
             : a_(a),
