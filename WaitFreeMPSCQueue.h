@@ -68,6 +68,17 @@ public:
 
     ~WaitFreeMPSCQueue()
     {
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            for (size_t i = 0; i < S; ++i)
+            {
+                if (elements_[i].isUsed_.load(std::memory_order_seq_cst) == 0)
+                {
+                    continue;
+                }
+                (&elements_[i].value_)->~T();
+            }
+        }
 #ifdef _WIN32
         _aligned_free(elements_);
 #else
