@@ -20,6 +20,76 @@ constexpr uint64_t makeValue(const uint64_t threadId, const uint64_t iteration, 
 
 }// namespace
 
+TEST(TestWaitFreeQueue, isEmpty)
+{
+    const size_t totalElements = numElements * 2;
+    auto queue = std::make_unique<WaitFreeMPSCQueue<uint64_t, totalElements>>();
+
+    for (uint64_t i = 0; i < numElements; ++i)
+    {
+        const auto value = makeValue(0, 0, i);
+        queue->push(value);
+    }
+    EXPECT_FALSE(queue->empty());
+
+    for (uint64_t i = 0; i < numElements; ++i)
+    {
+        uint64_t result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+    }
+    EXPECT_TRUE(queue->empty());
+
+    {
+        const auto value = makeValue(0, 0, 0);
+        queue->push(value);
+    }
+    EXPECT_FALSE(queue->empty());
+
+    {
+        uint64_t result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+    }
+    EXPECT_TRUE(queue->empty());
+}
+
+TEST(TestWaitFreeQueue, isFull)
+{
+    const size_t totalElements = numElements;
+    auto queue = std::make_unique<WaitFreeMPSCQueue<uint64_t, totalElements>>();
+
+    EXPECT_FALSE(queue->full());
+
+    for (uint64_t i = 0; i < numElements; ++i)
+    {
+        const auto value = makeValue(0, 0, i);
+        queue->push(value);
+    }
+    EXPECT_TRUE(queue->full());
+
+    for (uint64_t i = 0; i < numElements; ++i)
+    {
+        uint64_t result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+    }
+    EXPECT_FALSE(queue->full());
+
+    {
+        const auto value = makeValue(0, 0, 0);
+        queue->push(value);
+    }
+    EXPECT_FALSE(queue->full());
+
+    {
+        uint64_t result;
+        const auto popResult = queue->pop(result);
+        EXPECT_TRUE(popResult);
+    }
+    EXPECT_FALSE(queue->full());
+}
+
 TEST(TestWaitFreeQueue, multiThreadPushPopCorrectness)
 {
     const size_t totalElements = numElements * numIterations * 4;
@@ -127,6 +197,7 @@ TEST(TestWaitFreeQueue, multiThreadPushPopCorrectness)
     EXPECT_EQ(0, count);
     EXPECT_EQ(totalElements, pushValues.size());
     EXPECT_EQ(totalElements, popValues.size());
+    EXPECT_TRUE(queue->empty());
 }
 
 TEST(TestWaitFreeQueue, multiThreadPushPopCorrectnessPopCanFail)
