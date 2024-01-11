@@ -54,6 +54,26 @@ if (queue.pop(element)) {
     // queue is empty
 }
 
+
+// Checks if the queue is empty.
+// Returns true if the queue is empty, otherwise false.
+// Not thread safe with regards to pop operations, thread safe with regards to push operations. Regarding
+// thread safety empty() is considered a pop operation.
+
+if (queue.empty()) {
+   // queue is empty
+}
+
+
+// Checks if the queue is full.
+// Returns true if the queue is full, otherwise false.
+// Thread safe with regards to pop operations and to push operations. Regarding thread safety, full() is considered
+// a push operation.
+
+if (queue.full()) {
+    // queue is full
+}
+
 ```
 
 # License
