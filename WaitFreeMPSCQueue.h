@@ -153,21 +153,6 @@ public:
         return elements_[head].isUsed_.load(std::memory_order_acquire) == 0;
     }
 
-    /**
-     * @brief Checks if the queue is full
-     *
-     * @details
-     * Returns true if the queue is full, otherwise false.
-     *
-     * Thread safe with regards to pop operations and to push operations. Regarding thread safety, full() is considered
-     * a push operation.
-   */
-    [[nodiscard]] bool full() const noexcept
-    {
-        const auto tail = tail_.load(std::memory_order_relaxed) & modValue_;
-        return elements_[tail].isUsed_.load(std::memory_order_relaxed) == 1;
-    }
-
 private:
     static constexpr size_t cacheLineSize_ = 64;
     static constexpr uint32_t modValue_ = S - 1;

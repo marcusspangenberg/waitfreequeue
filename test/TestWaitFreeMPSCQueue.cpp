@@ -54,42 +54,6 @@ TEST(TestWaitFreeQueue, isEmpty)
     EXPECT_TRUE(queue->empty());
 }
 
-TEST(TestWaitFreeQueue, isFull)
-{
-    const size_t totalElements = numElements;
-    auto queue = std::make_unique<WaitFreeMPSCQueue<uint64_t, totalElements>>();
-
-    EXPECT_FALSE(queue->full());
-
-    for (uint64_t i = 0; i < numElements; ++i)
-    {
-        const auto value = makeValue(0, 0, i);
-        queue->push(value);
-    }
-    EXPECT_TRUE(queue->full());
-
-    for (uint64_t i = 0; i < numElements; ++i)
-    {
-        uint64_t result;
-        const auto popResult = queue->pop(result);
-        EXPECT_TRUE(popResult);
-    }
-    EXPECT_FALSE(queue->full());
-
-    {
-        const auto value = makeValue(0, 0, 0);
-        queue->push(value);
-    }
-    EXPECT_FALSE(queue->full());
-
-    {
-        uint64_t result;
-        const auto popResult = queue->pop(result);
-        EXPECT_TRUE(popResult);
-    }
-    EXPECT_FALSE(queue->full());
-}
-
 TEST(TestWaitFreeQueue, multiThreadPushPopCorrectness)
 {
     const size_t totalElements = numElements * numIterations * 4;
