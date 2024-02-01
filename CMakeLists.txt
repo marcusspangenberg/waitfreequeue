@@ -41,4 +41,7 @@ if (NOT WAITFREEQUEUE_DISABLE_TESTS)
     gtest_discover_tests(test_${PROJECT_NAME})
 endif ()
 
-install(FILES WaitFreeMPSCQueue.h DESTINATION include/waitfreequeue)
+install(FILES
+        WaitFreeMPSCQueue.h
+        WaitFreeSPSCQueue.h
+        DESTINATION include/waitfreequeue)
