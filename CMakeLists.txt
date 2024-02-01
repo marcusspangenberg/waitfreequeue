@@ -23,6 +23,8 @@ if (NOT WAITFREEQUEUE_DISABLE_TESTS)
             WaitFreeMPSCQueue.h
             test/TestWaitFreeMPSCQueue.cpp
             test/TestHelpers.h
+            WaitFreeSPSCQueue.h
+            test/TestWaitFreeSPSCQueue.cpp
     )
 
     target_include_directories(

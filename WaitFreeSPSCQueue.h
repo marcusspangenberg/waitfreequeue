@@ -39,22 +39,24 @@ SOFTWARE.
 #include <utility>
 
 /**
- * Single header, wait-free, multiple producer, single consumer queue.
+ * Single header, wait-free, single producer, single consumer queue with possibility
+ * to query queue size.
  *
  * T is the type of the elements in the queue.
  * S is the maximum number of elements in the queue. S must be a power of 2.
  */
 template<typename T, size_t S>
-class WaitFreeMPSCQueue
+class WaitFreeSPSCQueue
 {
 public:
-    WaitFreeMPSCQueue()
+    WaitFreeSPSCQueue()
         : head_(0),
-          tail_(0)
+          tail_(0),
+          size_(0)
     {
         static_assert(isPowerOfTwo(S));
         constexpr auto alignment = std::max(alignof(T), sizeof(void*));
-        constexpr auto adjustedSize = roundUpToMultipleOf(sizeof(element) * S, alignment);
+        constexpr auto adjustedSize = roundUpToMultipleOf(sizeof(T) * S, alignment);
 #ifdef _WIN32
         auto allocResult = _aligned_malloc(adjustedSize, alignment);
 #else
@@ -65,20 +67,18 @@ public:
             throw std::bad_alloc();
         }
         memset(allocResult, 0, adjustedSize);
-        elements_ = reinterpret_cast<element*>(allocResult);
+        elements_ = reinterpret_cast<T*>(allocResult);
     }
 
-    ~WaitFreeMPSCQueue()
+    ~WaitFreeSPSCQueue()
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
-            for (size_t i = 0; i < S; ++i)
+            const auto size = size_.load();
+            for (size_t i = 0; i < size; ++i)
             {
-                if (elements_[i].isUsed_.load(std::memory_order_seq_cst) == 0)
-                {
-                    continue;
-                }
-                (&elements_[i].value_)->~T();
+                const auto head = (head_ + i) & modValue_;
+                (&elements_[head])->~T();
             }
         }
 #ifdef _WIN32
@@ -91,19 +91,16 @@ public:
     /**
      * @brief Pushes an item to the queue.
      *
-     * @details
-     * Will assert if the queue is full if asserts are enabled,
-     * otherwise the behaviour is undefined. The queue should be dimensioned so that this never happens.
-     *
-     * Thread safe with regards to other push operations and to pop operations.
+     * Not thread safe with regards to other push operations, thread safe with regards to pop operations.
    */
     template<typename... U>
     void push(U&&... item) noexcept
     {
-        const auto tail = tail_.fetch_add(1, std::memory_order_relaxed) & modValue_;
-        new (&elements_[tail].value_) T(std::forward<U>(item)...);
-        assert(elements_[tail].isUsed_.load(std::memory_order_acquire) == 0);
-        elements_[tail].isUsed_.store(1, std::memory_order_release);
+        const auto tail = tail_;
+        tail_ = (tail_ + 1) & modValue_;
+        new (&elements_[tail]) T(std::forward<U>(item)...);
+        [[maybe_unused]] const auto oldValue = size_.fetch_add(1, std::memory_order_acq_rel);
+        assert(oldValue < S);
     }
 
     /**
@@ -116,57 +113,49 @@ public:
    */
     bool pop(T& item) noexcept
     {
-        const auto head = head_.fetch_add(1, std::memory_order_relaxed) & modValue_;
-        if (elements_[head].isUsed_.load(std::memory_order_acquire) == 0)
+        if (size_.load(std::memory_order_relaxed) == 0)
         {
-            head_.fetch_sub(1, std::memory_order_relaxed);
             return false;
         }
 
+        const auto head = head_;
+        head_ = (head_ + 1) & modValue_;
+
         if constexpr (std::is_move_assignable_v<T>)
         {
-            item = std::move(elements_[head].value_);
+            item = std::move(elements_[head]);
         }
         else
         {
-            item = elements_[head].value_;
+            item = elements_[head];
             if constexpr (!std::is_trivially_destructible_v<T>)
             {
-                (&elements_[head].value_)->~T();
+                (&elements_[head])->~T();
             }
         }
 
-        elements_[head].isUsed_.store(0, std::memory_order_relaxed);
+        size_.fetch_sub(1, std::memory_order_acq_rel);
         return true;
     }
 
     /**
-     * @brief Checks if the queue is empty
+     * @brief Get the current size of the queue.
      *
-     * @details
-     * Returns true if the queue is empty, otherwise false.
-     *
-     * Not thread safe with regards to pop operations, thread safe with regards to push operations. Regarding
-     * thread safety empty() is considered a pop operation.
+     * Thread safe with regards to push and pop operations.
    */
-    [[nodiscard]] bool empty() const noexcept
+    [[nodiscard]] size_t size() const noexcept
     {
-        const auto head = head_.load(std::memory_order_relaxed) & modValue_;
-        return elements_[head].isUsed_.load(std::memory_order_acquire) == 0;
+        return size_.load(std::memory_order_relaxed);
     }
 
 private:
     static constexpr size_t cacheLineSize_ = 64;
     static constexpr uint32_t modValue_ = S - 1;
 
-    struct element {
-        alignas(cacheLineSize_) T value_;
-        std::atomic<uint_fast32_t> isUsed_;
-    };
-
-    alignas(cacheLineSize_) element* elements_;
-    alignas(cacheLineSize_) std::atomic<uint_fast32_t> head_;
-    alignas(cacheLineSize_) std::atomic<uint_fast32_t> tail_;
+    T* elements_;
+    std::atomic<size_t> size_;
+    alignas(cacheLineSize_) size_t head_;
+    alignas(cacheLineSize_) size_t tail_;
 
     static constexpr bool isPowerOfTwo(const size_t size)
     {
