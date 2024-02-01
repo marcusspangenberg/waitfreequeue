@@ -50,9 +50,9 @@ class WaitFreeSPSCQueue
 {
 public:
     WaitFreeSPSCQueue()
-        : head_(0),
-          tail_(0),
-          size_(0)
+        : size_(0),
+          head_(0),
+          tail_(0)
     {
         static_assert(isPowerOfTwo(S));
         constexpr auto alignment = std::max(alignof(T), sizeof(void*));
