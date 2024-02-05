@@ -113,7 +113,7 @@ public:
    */
     bool pop(T& item) noexcept
     {
-        if (size_.load(std::memory_order_relaxed) == 0)
+        if (size_.load(std::memory_order_acquire) == 0)
         {
             return false;
         }
@@ -145,7 +145,7 @@ public:
    */
     [[nodiscard]] size_t size() const noexcept
     {
-        return size_.load(std::memory_order_relaxed);
+        return size_.load(std::memory_order_acquire);
     }
 
 private:
