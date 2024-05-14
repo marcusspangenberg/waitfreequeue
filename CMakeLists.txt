@@ -20,11 +20,11 @@ if (NOT WAITFREEQUEUE_DISABLE_TESTS)
 
     add_executable(
             test_${PROJECT_NAME}
-            WaitFreeMPSCQueue.h
-            test/TestWaitFreeMPSCQueue.cpp
-            test/TestHelpers.h
-            WaitFreeSPSCQueue.h
-            test/TestWaitFreeSPSCQueue.cpp
+            mpmc_queue.h
+            spsc_queue.h
+            test/test_mpsc_queue.cpp
+            test/test_helpers.h
+            test/test_spsc_queue.cpp
     )
 
     target_include_directories(
@@ -42,6 +42,6 @@ if (NOT WAITFREEQUEUE_DISABLE_TESTS)
 endif ()
 
 install(FILES
-        WaitFreeMPSCQueue.h
-        WaitFreeSPSCQueue.h
+        mpmc_queue.h
+        spsc_queue.h
         DESTINATION include/waitfreequeue)
