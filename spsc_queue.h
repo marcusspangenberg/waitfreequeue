@@ -38,6 +38,9 @@ SOFTWARE.
 #include <type_traits>
 #include <utility>
 
+namespace waitfree
+{
+
 /**
  * Single header, wait-free, single producer, single consumer queue with possibility
  * to query queue size.
@@ -46,38 +49,38 @@ SOFTWARE.
  * S is the maximum number of elements in the queue. S must be a power of 2.
  */
 template<typename T, size_t S>
-class WaitFreeSPSCQueue
+class spsc_queue
 {
 public:
-    WaitFreeSPSCQueue()
+    spsc_queue()
         : size_(0),
           head_(0),
           tail_(0)
     {
-        static_assert(isPowerOfTwo(S));
+        static_assert(is_power_of_two(S));
         constexpr auto alignment = std::max(alignof(T), sizeof(void*));
-        constexpr auto adjustedSize = roundUpToMultipleOf(sizeof(T) * S, alignment);
+        constexpr auto adjusted_size = round_up_to_multiple_of(sizeof(T) * S, alignment);
 #ifdef _WIN32
-        auto allocResult = _aligned_malloc(adjustedSize, alignment);
+        auto alloc_result = _aligned_malloc(adjusted_size, alignment);
 #else
-        auto allocResult = aligned_alloc(alignment, adjustedSize);
+        auto alloc_result = aligned_alloc(alignment, adjusted_size);
 #endif
-        if (!allocResult)
+        if (!alloc_result)
         {
             throw std::bad_alloc();
         }
-        memset(allocResult, 0, adjustedSize);
-        elements_ = reinterpret_cast<T*>(allocResult);
+        memset(alloc_result, 0, adjusted_size);
+        elements_ = reinterpret_cast<T*>(alloc_result);
     }
 
-    ~WaitFreeSPSCQueue()
+    ~spsc_queue()
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
             const auto size = size_.load();
             for (size_t i = 0; i < size; ++i)
             {
-                const auto head = (head_ + i) & modValue_;
+                const auto head = (head_ + i) & mod_value_;
                 (&elements_[head])->~T();
             }
         }
@@ -97,7 +100,7 @@ public:
     void push(U&&... item) noexcept
     {
         const auto tail = tail_;
-        tail_ = (tail_ + 1) & modValue_;
+        tail_ = (tail_ + 1) & mod_value_;
         new (&elements_[tail]) T(std::forward<U>(item)...);
         [[maybe_unused]] const auto oldValue = size_.fetch_add(1, std::memory_order_acq_rel);
         assert(oldValue < S);
@@ -119,7 +122,7 @@ public:
         }
 
         const auto head = head_;
-        head_ = (head_ + 1) & modValue_;
+        head_ = (head_ + 1) & mod_value_;
 
         if constexpr (std::is_move_assignable_v<T>)
         {
@@ -149,23 +152,25 @@ public:
     }
 
 private:
-    static constexpr size_t cacheLineSize_ = 64;
-    static constexpr uint32_t modValue_ = S - 1;
+    static constexpr size_t cacheLine_size_ = 64;
+    static constexpr uint32_t mod_value_ = S - 1;
 
     T* elements_;
     std::atomic<size_t> size_;
-    alignas(cacheLineSize_) size_t head_;
-    alignas(cacheLineSize_) size_t tail_;
+    alignas(cacheLine_size_) size_t head_;
+    alignas(cacheLine_size_) size_t tail_;
 
-    static constexpr bool isPowerOfTwo(const size_t size)
+    static constexpr bool is_power_of_two(const size_t size)
     {
         return (size & (size - 1)) == 0;
     }
 
-    static constexpr size_t roundUpToMultipleOf(const size_t size, const size_t multiple)
+    static constexpr size_t round_up_to_multiple_of(const size_t size, const size_t multiple)
     {
         const auto remaining = size % multiple;
-        const auto adjustedSize = remaining == 0 ? size : size + (multiple - remaining);
-        return adjustedSize;
+        const auto adjusted_size = remaining == 0 ? size : size + (multiple - remaining);
+        return adjusted_size;
     }
 };
+
+}// namespace waitfree

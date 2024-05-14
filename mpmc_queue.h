@@ -38,43 +38,46 @@ SOFTWARE.
 #include <type_traits>
 #include <utility>
 
+namespace waitfree
+{
+
 /**
- * Single header, wait-free, multiple producer, single consumer queue.
+ * Wait-free, multiple producer, single consumer queue.
  *
  * T is the type of the elements in the queue.
  * S is the maximum number of elements in the queue. S must be a power of 2.
  */
 template<typename T, size_t S>
-class WaitFreeMPSCQueue
+class mpsc_queue
 {
 public:
-    WaitFreeMPSCQueue()
+    mpsc_queue()
         : head_(0),
           tail_(0)
     {
-        static_assert(isPowerOfTwo(S));
+        static_assert(is_power_of_two(S));
         constexpr auto alignment = std::max(alignof(T), sizeof(void*));
-        constexpr auto adjustedSize = roundUpToMultipleOf(sizeof(element) * S, alignment);
+        constexpr auto adjusted_size = round_up_to_multiple_of(sizeof(element) * S, alignment);
 #ifdef _WIN32
-        auto allocResult = _aligned_malloc(adjustedSize, alignment);
+        auto alloc_result = _aligned_malloc(adjusted_size, alignment);
 #else
-        auto allocResult = aligned_alloc(alignment, adjustedSize);
+        auto alloc_result = aligned_alloc(alignment, adjusted_size);
 #endif
-        if (!allocResult)
+        if (!alloc_result)
         {
             throw std::bad_alloc();
         }
-        memset(allocResult, 0, adjustedSize);
-        elements_ = reinterpret_cast<element*>(allocResult);
+        memset(alloc_result, 0, adjusted_size);
+        elements_ = reinterpret_cast<element*>(alloc_result);
     }
 
-    ~WaitFreeMPSCQueue()
+    ~mpsc_queue()
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
             for (size_t i = 0; i < S; ++i)
             {
-                if (elements_[i].isUsed_.load(std::memory_order_seq_cst) == 0)
+                if (elements_[i].is_used_.load(std::memory_order_seq_cst) == 0)
                 {
                     continue;
                 }
@@ -100,10 +103,10 @@ public:
     template<typename... U>
     void push(U&&... item) noexcept
     {
-        const auto tail = tail_.fetch_add(1, std::memory_order_relaxed) & modValue_;
+        const auto tail = tail_.fetch_add(1, std::memory_order_relaxed) & mod_value_;
         new (&elements_[tail].value_) T(std::forward<U>(item)...);
-        assert(elements_[tail].isUsed_.load(std::memory_order_acquire) == 0);
-        elements_[tail].isUsed_.store(1, std::memory_order_release);
+        assert(elements_[tail].is_used_.load(std::memory_order_acquire) == 0);
+        elements_[tail].is_used_.store(1, std::memory_order_release);
     }
 
     /**
@@ -116,8 +119,8 @@ public:
    */
     bool pop(T& item) noexcept
     {
-        const auto head = head_.fetch_add(1, std::memory_order_relaxed) & modValue_;
-        if (elements_[head].isUsed_.load(std::memory_order_acquire) == 0)
+        const auto head = head_.fetch_add(1, std::memory_order_relaxed) & mod_value_;
+        if (elements_[head].is_used_.load(std::memory_order_acquire) == 0)
         {
             head_.fetch_sub(1, std::memory_order_relaxed);
             return false;
@@ -136,7 +139,7 @@ public:
             }
         }
 
-        elements_[head].isUsed_.store(0, std::memory_order_relaxed);
+        elements_[head].is_used_.store(0, std::memory_order_relaxed);
         return true;
     }
 
@@ -151,32 +154,35 @@ public:
    */
     [[nodiscard]] bool empty() const noexcept
     {
-        const auto head = head_.load(std::memory_order_relaxed) & modValue_;
-        return elements_[head].isUsed_.load(std::memory_order_acquire) == 0;
+        const auto head = head_.load(std::memory_order_relaxed) & mod_value_;
+        return elements_[head].is_used_.load(std::memory_order_acquire) == 0;
     }
 
 private:
-    static constexpr size_t cacheLineSize_ = 64;
-    static constexpr uint32_t modValue_ = S - 1;
+    static constexpr size_t cache_line_size_ = 64;
+    static constexpr uint32_t mod_value_ = S - 1;
 
-    struct element {
-        alignas(cacheLineSize_) T value_;
-        std::atomic<uint_fast32_t> isUsed_;
+    struct element
+    {
+        alignas(cache_line_size_) T value_;
+        std::atomic<uint_fast32_t> is_used_;
     };
 
-    alignas(cacheLineSize_) element* elements_;
-    alignas(cacheLineSize_) std::atomic<uint_fast32_t> head_;
-    alignas(cacheLineSize_) std::atomic<uint_fast32_t> tail_;
+    alignas(cache_line_size_) element* elements_;
+    alignas(cache_line_size_) std::atomic<uint_fast32_t> head_;
+    alignas(cache_line_size_) std::atomic<uint_fast32_t> tail_;
 
-    static constexpr bool isPowerOfTwo(const size_t size)
+    static constexpr bool is_power_of_two(const size_t size)
     {
         return (size & (size - 1)) == 0;
     }
 
-    static constexpr size_t roundUpToMultipleOf(const size_t size, const size_t multiple)
+    static constexpr size_t round_up_to_multiple_of(const size_t size, const size_t multiple)
     {
         const auto remaining = size % multiple;
-        const auto adjustedSize = remaining == 0 ? size : size + (multiple - remaining);
-        return adjustedSize;
+        const auto adjusted_size = remaining == 0 ? size : size + (multiple - remaining);
+        return adjusted_size;
     }
 };
+
+}// namespace waitfree

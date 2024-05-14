@@ -8,15 +8,15 @@
 #include <string>
 #include <utility>
 
-class ScopedTimer
+class scoped_timer
 {
 public:
-    explicit ScopedTimer()
+    explicit scoped_timer()
         : start_(std::chrono::high_resolution_clock::now())
     {
     }
 
-    [[nodiscard]] double getMs() const
+    [[nodiscard]] double get_ms() const
     {
         auto elapsed = std::chrono::high_resolution_clock::now() - start_;
         return std::chrono::duration<double, std::milli>(elapsed).count();
@@ -28,15 +28,15 @@ private:
 };
 
 template<size_t S>
-class ScopedStatsAverage
+class scoped_stats_average
 {
 public:
-    explicit ScopedStatsAverage(std::string name)
+    explicit scoped_stats_average(std::string name)
         : name_(std::move(name))
     {
     }
 
-    ~ScopedStatsAverage()
+    ~scoped_stats_average()
     {
         double sum = 0.0;
         for (const auto value : values_)
@@ -60,23 +60,24 @@ private:
 };
 
 template<size_t N>
-struct SyncBarrier {
-    std::atomic_flag flagsWait_[N] = {ATOMIC_FLAG_INIT};
-    std::atomic_flag flagsContinue_[N] = {ATOMIC_FLAG_INIT};
+struct sync_barrier
+{
+    std::atomic_flag flags_wait_[N] = {ATOMIC_FLAG_INIT};
+    std::atomic_flag flags_continue_[N] = {ATOMIC_FLAG_INIT};
 
-    SyncBarrier()
+    sync_barrier()
     {
         for (size_t i = 0; i < N; ++i)
         {
-            flagsWait_[i].test_and_set(std::memory_order_acquire);
-            flagsContinue_[i].test_and_set(std::memory_order_acquire);
+            flags_wait_[i].test_and_set(std::memory_order_acquire);
+            flags_continue_[i].test_and_set(std::memory_order_acquire);
         }
     }
 
     void arrive(const size_t threadId)
     {
-        flagsWait_[threadId].clear(std::memory_order_release);
-        while (flagsContinue_[threadId].test_and_set(std::memory_order_acquire))
+        flags_wait_[threadId].clear(std::memory_order_release);
+        while (flags_continue_[threadId].test_and_set(std::memory_order_acquire))
         {
         }
     }
@@ -85,14 +86,14 @@ struct SyncBarrier {
     {
         for (size_t i = 0; i < N; ++i)
         {
-            while (flagsWait_[i].test_and_set(std::memory_order_acquire))
+            while (flags_wait_[i].test_and_set(std::memory_order_acquire))
             {
             }
         }
 
         for (size_t i = 0; i < N; ++i)
         {
-            flagsContinue_[i].clear(std::memory_order_release);
+            flags_continue_[i].clear(std::memory_order_release);
         }
     }
 };
