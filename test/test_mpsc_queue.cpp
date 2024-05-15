@@ -1,4 +1,4 @@
-#include "mpmc_queue.h"
+#include "mpsc_queue.h"
 #include "test/test_helpers.h"
 #include "gtest/gtest.h"
 #include <cstddef>
