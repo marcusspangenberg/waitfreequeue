@@ -52,6 +52,7 @@ template<typename T, size_t S>
 class spsc_queue
 {
 public:
+    static constexpr size_t capacity = S;
     spsc_queue()
         : size_(0),
           head_(0),
